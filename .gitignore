@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+# Never commit real case documents or review backups
+*.docx
+!tests/fixtures/fictional_*.docx
+*_backup.json
+*_feedback.txt
