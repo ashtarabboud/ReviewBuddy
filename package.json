@@ -1,0 +1,11 @@
+{
+  "name": "reviewbuddy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private, on-device sentence-by-sentence review of draft RFP responses.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit.test.mjs tests/e2e.test.mjs",
+    "fixtures": "python3 tests/make-fixtures.py tests/fixtures"
+  }
+}
