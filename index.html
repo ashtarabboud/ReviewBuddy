@@ -39,7 +39,7 @@
     <noscript><p class="panel">ReviewBuddy needs JavaScript enabled.</p></noscript>
   </main>
 
-  <input type="file" id="file-input" class="sr-only" accept=".docx,.txt,.md,.json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/json">
+  <input type="file" id="file-input" class="sr-only" accept=".pdf,.docx,.txt,.md,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/json">
 
   <!-- Library / settings -->
   <dialog id="dlg-library" class="sheet">
@@ -47,13 +47,16 @@
     <div id="library-body"></div>
   </dialog>
 
-  <!-- Export / submit -->
+  <!-- Export: submit feedback (draft) or ask Claude (document) -->
   <dialog id="dlg-export" class="sheet">
-    <div class="sheet-head"><h2>Submit review</h2><button class="icon-btn" data-close type="button" aria-label="Close">✕</button></div>
-    <p class="hint">Structured feedback for every RFP, with each highlighted sentence identified by RFP, paragraph (¶) and sentence (S) number.</p>
-    <label class="check"><input type="checkbox" id="opt-green-text"> Include full text of approved (green) sentences</label>
-    <label class="check"><input type="checkbox" id="opt-instructions" checked> Include instructions for the next round</label>
-    <textarea id="export-text" readonly rows="12" aria-label="Feedback preview"></textarea>
+    <div class="sheet-head"><h2 id="export-title">Submit review</h2><button class="icon-btn" data-close type="button" aria-label="Close">✕</button></div>
+    <p class="hint" id="export-hint"></p>
+    <div id="questions-wrap" hidden>
+      <label class="field" for="export-questions">Your overall questions for Claude (optional)</label>
+      <textarea id="export-questions" rows="3" placeholder="e.g. What is the main holding? How does this affect my client’s claim? Explain it like I’m new to this area."></textarea>
+    </div>
+    <div id="export-options"></div>
+    <textarea id="export-text" readonly rows="12" aria-label="Preview"></textarea>
     <div class="btn-row">
       <button class="btn primary" id="btn-copy" type="button">Copy feedback</button>
       <button class="btn" id="btn-share" type="button" hidden>Share…</button>
@@ -76,7 +79,7 @@
 
   <!-- Paste text -->
   <dialog id="dlg-paste" class="sheet">
-    <div class="sheet-head"><h2>Paste document text</h2><button class="icon-btn" data-close type="button" aria-label="Close">✕</button></div>
+    <div class="sheet-head"><h2 id="paste-title">Paste text</h2><button class="icon-btn" data-close type="button" aria-label="Close">✕</button></div>
     <label class="field">Name<input type="text" id="paste-name" value="Pasted draft" autocomplete="off"></label>
     <textarea id="paste-text" rows="12" placeholder="Paste the full draft here (requests and responses)…"></textarea>
     <div class="btn-row"><button class="btn primary" id="btn-paste-load" type="button">Load for review</button></div>

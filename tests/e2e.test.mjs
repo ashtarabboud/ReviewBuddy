@@ -10,7 +10,7 @@ import { serve } from './serve.mjs';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
 const FIX = (n) => fileURLToPath(new URL(`./fixtures/${n}`, import.meta.url));
-const APP_FILES = new Set(['/', '/index.html', '/css/styles.css', '/js/app.js', '/js/parse.js', '/js/docx.js', '/js/sample.js', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-180.png']);
+const APP_FILES = new Set(['/', '/index.html', '/css/styles.css', '/js/app.js', '/js/parse.js', '/js/docx.js', '/js/sample.js', '/js/pdf.js', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-180.png']);
 
 let server, base, browser;
 before(async () => {
@@ -35,6 +35,11 @@ async function newPage(t) {
 
 async function openDocx(page, name) {
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /Open draft/ }).first().click()]);
+  await chooser.setFiles(FIX(name));
+}
+
+async function openForReading(page, name) {
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /Open document/ }).first().click()]);
   await chooser.setFiles(FIX(name));
 }
 
@@ -92,6 +97,7 @@ test('highlights, comments, notes and ratings autosave and survive reload', asyn
   assert.match(await s('rfp-1|0|1').getAttribute('class'), /m-red/);
   assert.match(await s('rfp-1|0|1').getAttribute('class'), /has-comment/);
   assert.match(await s('rfp-1|1|0').getAttribute('class'), /m-yellow/);
+  assert.doesNotMatch(await page.textContent('main'), /null|undefined/);
   assert.match(await s('rfp-2|0|0').getAttribute('class'), /m-green/);
   assert.match(await s('rfp-2|0|1').getAttribute('class'), /m-green/);
   assert.equal(await page.locator('[data-rate="rfp-1|mixed"]').getAttribute('aria-checked'), 'true');
@@ -202,7 +208,7 @@ test('privacy: only the app’s own files load, nothing leaves the page, network
   assert.deepEqual(await page.evaluate(() => Object.keys(localStorage)), ['reviewbuddy:v1']);
 
   // Source code contains no network APIs or third-party URLs.
-  for (const f of ['js/app.js', 'js/parse.js', 'js/docx.js', 'js/sample.js', 'index.html', 'css/styles.css']) {
+  for (const f of ['js/app.js', 'js/parse.js', 'js/docx.js', 'js/pdf.js', 'js/sample.js', 'index.html', 'css/styles.css']) {
     const src = await readFile(fileURLToPath(new URL(`../${f}`, import.meta.url)), 'utf8');
     assert.doesNotMatch(src, /\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource|https?:\/\/(?!www\.w3\.org|schemas\.openxmlformats\.org)/, `${f} references the network`);
   }
@@ -210,7 +216,7 @@ test('privacy: only the app’s own files load, nothing leaves the page, network
 
 test('erase all data removes everything', async (t) => {
   const { page } = await newPage(t);
-  await page.getByRole('button', { name: /fictional sample/ }).tap();
+  await page.locator('.mode-card.draft').getByRole('button', { name: 'Try a sample' }).tap();
   await page.waitForSelector('#sec-rfp-1');
   page.on('dialog', (d) => d.accept());
   await page.tap('#btn-menu');
@@ -221,9 +227,98 @@ test('erase all data removes everything', async (t) => {
 
 test('plain-text paste works', async (t) => {
   const { page } = await newPage(t);
-  await page.getByRole('button', { name: 'Paste text instead' }).tap();
+  await page.locator('.mode-card.draft').getByRole('button', { name: 'Paste text' }).tap();
   await page.fill('#paste-text', 'REQUEST NO. 7: All maps.\nRESPONSE TO REQUEST NO. 7: None exist. Plaintiff searched.');
   await page.tap('#btn-paste-load');
   await page.waitForSelector('#sec-rfp-7');
   assert.equal(await page.locator('#sec-rfp-7 .sent').count(), 2);
+});
+
+test('document review: separate mode with key point / research / explain tools and a Claude prompt', async (t) => {
+  const { page, errors } = await newPage(t);
+  await page.locator('.mode-card.read').getByRole('button', { name: 'Try a sample' }).tap();
+  await page.waitForSelector('section.read');
+  // sections come from the document's headings; no ratings in this mode
+  const labels = await page.$$eval('section.read h2', (els) => els.map((e) => e.textContent));
+  assert.deepEqual(labels, ['I. BACKGROUND', 'II. LEGAL STANDARD', 'A. Proportionality', 'B. Privilege', 'IV. CONCLUSION']);
+  assert.equal(await page.textContent('#sec-s1 .kicker'), 'IN THE SUPERIOR COURT OF EXAMPLE COUNTY (FICTIONAL SAMPLE) · ORDER ON MOTION TO COMPEL');
+  assert.equal(await page.textContent('#sec-s3 .kicker'), 'III. DISCUSSION');
+  assert.equal(await page.locator('[data-rate]').count(), 0);
+  assert.equal(await page.textContent('#btn-export'), 'Ask Claude');
+  assert.deepEqual(await page.$$eval('#sec-s2 .para:first-child .tool[data-tool]', (els) => els.map((e) => e.dataset.tool)), ['key', 'research', 'explain', 'erase', 'comment']);
+
+  const s = (k) => page.locator(`[data-k="${k}"]`);
+  const tools = (sec) => page.locator(`#sec-${sec} .para`).first();
+  // Legal standard: key point + explain
+  await s('s2|0|0').tap();                                   // default tool = key point
+  await tools('s2').locator('.tool.explain').tap();
+  await s('s2|0|1').tap();
+  // Privilege: research with a note
+  await tools('s4').locator('.tool.research').tap();
+  await s('s4|0|0').tap();
+  await tools('s4').locator('.tool.comment').tap();
+  await s('s4|0|0').tap();
+  await page.fill('#comment-text', 'Is a missing log ever treated as waiver in our circuit?');
+  await page.tap('#btn-comment-save');
+  await page.fill('[data-notes="s3"]', 'Compare the five-year cutoff with our case.');
+  assert.match(await s('s2|0|0').getAttribute('class'), /m-key/);
+  assert.match(await s('s2|0|1').getAttribute('class'), /m-explain/);
+  assert.match(await s('s4|0|0').getAttribute('class'), /m-research.*has-comment/);
+  assert.doesNotMatch(await page.textContent('main'), /null|undefined/);
+
+  await page.tap('#btn-export');
+  await page.fill('#export-questions', 'What did the court actually order?');
+  const text = await page.inputValue('#export-text');
+  assert.match(text, /Use plain, simple language/);
+  assert.match(text, /MY OVERALL QUESTIONS\nWhat did the court actually order\?/);
+  assert.match(text, /EXPLAIN THIS TO ME \(what does it mean\?\)\n1\. \[¶2 S2 · II\. LEGAL STANDARD\] “Fed\. R\. Civ\. P\. 26\(b\)\(1\)\.”/);
+  assert.match(text, /RESEARCH THIS\n1\. \[¶4 S1 · B\. Privilege\] “A party withholding documents[^\n]*”\n   My note: Is a missing log ever treated as waiver in our circuit\?/);
+  assert.match(text, /KEY POINTS I HIGHLIGHTED[^\n]*\n1\. \[¶2 S1 · II\. LEGAL STANDARD\]/);
+  assert.match(text, /MY RESEARCH NOTES BY SECTION\n- A\. Proportionality: Compare the five-year cutoff/);
+  assert.match(text, /never make up a case or citation/);
+  assert.doesNotMatch(text, /FULL DOCUMENT TEXT/);
+  await page.locator('[data-opt="fullText"]').check();
+  assert.match(await page.inputValue('#export-text'), /FULL DOCUMENT TEXT[\s\S]*\[¶5\] The motion is GRANTED IN PART/);
+
+  // questions and options persist
+  await page.waitForTimeout(600);
+  await page.reload();
+  await page.tap('#btn-export');
+  assert.equal(await page.inputValue('#export-questions'), 'What did the court actually order?');
+  assert.equal(await page.locator('[data-opt="fullText"]').isChecked(), true);
+  assert.deepEqual(errors, []);
+});
+
+test('document review: opens a PDF on-device, rebuilds paragraphs and drops headers/page numbers', async (t) => {
+  const { page, requests, errors } = await newPage(t);
+  const before = requests.length;
+  await openForReading(page, 'fictional_opinion.pdf');
+  await page.waitForSelector('section.read', { timeout: 20000 });
+  const labels = await page.$$eval('section.read h2', (els) => els.map((e) => e.textContent));
+  assert.deepEqual(labels, ['I. BACKGROUND', 'II. DISCUSSION']);
+  const paras = await page.$$eval('.para-text', (ps) => ps.map((p) => p.textContent));
+  assert.equal(paras.length, 15);
+  assert.match(paras[0], /^Paragraph 1 of the fictional opinion explains the rule in plain terms\. See Fed\. R\. Civ\. P\. 26\(b\)\(1\)\. The court then applies .* wrapping behavior\.$/);
+  assert.ok(paras.every((p) => !/Fictional v\. Sample, No\./.test(p)), 'running header leaked into text');
+  assert.equal(await page.locator('[data-k="s1|0|1"]').textContent(), 'See Fed. R. Civ. P. 26(b)(1).');
+  // Only the app's own bundled PDF reader was loaded; nothing else.
+  const after = requests.slice(before).map((u) => new URL(u));
+  for (const u of after) assert.equal(u.origin, new URL(base).origin, `unexpected request: ${u}`);
+  assert.deepEqual([...new Set(after.map((u) => u.pathname))].sort(), ['/vendor/pdfjs/pdf.min.js', '/vendor/pdfjs/pdf.worker.min.js']);
+  assert.deepEqual(errors, []);
+});
+
+test('document review: Word headings become sections; long text without headings is split into parts', async (t) => {
+  const { page } = await newPage(t);
+  await page.locator('.mode-card.read').getByRole('button', { name: 'Paste text' }).tap();
+  const long = Array.from({ length: 30 }, (_, i) => `Sentence ${i + 1} is here. It has two sentences.`).join('\n\n');
+  await page.fill('#paste-text', long);
+  await page.tap('#btn-paste-load');
+  await page.waitForSelector('section.read');
+  const labels = await page.$$eval('section.read h2', (els) => els.map((e) => e.textContent));
+  assert.deepEqual(labels, ['Part 1 (¶1–12)', 'Part 2 (¶13–24)', 'Part 3 (¶25–30)']);
+  assert.equal(await page.textContent('#sec-s2 .para .pnum'), '¶13');
+  // the draft review list stays separate: no "round 2" question when opening a document
+  await page.tap('#btn-menu');
+  assert.match(await page.textContent('#library-body .saved-list'), /Document review/);
 });

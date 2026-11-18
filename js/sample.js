@@ -31,3 +31,32 @@ Dated: November 1, 2026
 Respectfully submitted,
 /s/ Sample Attorney
 Counsel for Plaintiff (fictional)`;
+
+// Fictional excerpt for trying "Review a document" mode.
+export const READING_SAMPLE_NAME = 'Sample (fictional) – Court opinion excerpt';
+
+export const READING_SAMPLE_TEXT = `IN THE SUPERIOR COURT OF EXAMPLE COUNTY (FICTIONAL SAMPLE)
+
+ORDER ON MOTION TO COMPEL
+
+I. BACKGROUND
+
+Plaintiff Sample Party sued Example Corp. for breach of contract. Plaintiff served requests for production seeking internal emails about the delivery schedule. Example Corp. objected that the requests were overbroad and sought privileged communications.
+
+II. LEGAL STANDARD
+
+A party may obtain discovery regarding any nonprivileged matter that is relevant to any party's claim or defense and proportional to the needs of the case. Fed. R. Civ. P. 26(b)(1). The party resisting discovery bears the burden of showing why it should not be allowed.
+
+III. DISCUSSION
+
+A. Proportionality
+
+The Court finds that emails from the twelve-month period before the alleged breach are proportional to the needs of the case. Requests reaching back more than five years are not. Example Corp. must produce responsive emails from January 1, 2024 through December 31, 2024.
+
+B. Privilege
+
+A party withholding documents as privileged must describe them in a privilege log with enough detail for the other side to assess the claim. Fed. R. Civ. P. 26(b)(5)(A). Example Corp. did not serve a log. The Court declines to find waiver at this stage but orders a log within 21 days.
+
+IV. CONCLUSION
+
+The motion is GRANTED IN PART and DENIED IN PART.`;

@@ -5,3 +5,5 @@ node_modules/
 !tests/fixtures/fictional_*.docx
 *_backup.json
 *_feedback.txt
+*.pdf
+!tests/fixtures/fictional_*.pdf
