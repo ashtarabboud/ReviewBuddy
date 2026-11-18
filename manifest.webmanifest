@@ -1,7 +1,7 @@
 {
   "name": "ReviewBuddy",
   "short_name": "ReviewBuddy",
-  "description": "Private, on-device sentence-by-sentence review of draft RFP responses.",
+  "description": "Private, on-device review of your drafts and other people's documents.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

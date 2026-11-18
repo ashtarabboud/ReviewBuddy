@@ -36,6 +36,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -236,3 +237,39 @@ blockquote { margin: 10px 0; padding: 8px 12px; border-left: 3px solid var(--lin
   .section { padding: 18px 22px 20px; }
   .para-text { font-size: 18px; }
 }
+
+/* ---------- mode cards (home) ---------- */
+.lede { font-size: 17px; color: var(--muted); margin: 0 0 12px; }
+.mode-cards { display: grid; gap: 14px; margin: 16px 0; }
+@media (min-width: 700px) { .mode-cards { grid-template-columns: 1fr 1fr; } }
+.mode-card {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px; display: flex; flex-direction: column;
+}
+.mode-card.read { border-top: 4px solid var(--b-line); }
+.mode-card.draft { border-top: 4px solid var(--g-line); }
+.mode-card h2 { margin: 0 0 6px; font-size: 19px; }
+.mode-card p { margin: 0; color: var(--muted); font-size: 15px; flex: 1; }
+.mode-card .btn-col { margin: 14px 0 0; }
+.mode-card .btn-row { margin: 0; }
+.mode-card .btn-row .btn { flex: 1; }
+#dlg-library .mode-cards { margin-top: 10px; }
+
+/* ---------- document-review marks ---------- */
+:root { --k-bg: #fff0a6; --k-line: #b88a00; --b-bg: #d3e6fb; --b-line: #2f6fb8; --p-bg: #eadcfb; --p-line: #7a4bc0; }
+@media (prefers-color-scheme: dark) {
+  :root { --k-bg: #574a12; --k-line: #f0c94a; --b-bg: #1d3a5c; --b-line: #7fb0e6; --p-bg: #3d2a5c; --p-line: #c3a2f2; }
+}
+.tool.key { background: var(--k-bg); color: var(--k-line); }
+.tool.research { background: var(--b-bg); color: var(--b-line); font-size: 14px; }
+.tool.explain { background: var(--p-bg); color: var(--p-line); font-size: 17px; }
+.lg.key, .pill.key { background: var(--k-bg); }
+.lg.research, .pill.research { background: var(--b-bg); }
+.lg.explain, .pill.explain { background: var(--p-bg); }
+.sent.m-key { background: var(--k-bg); }
+.sent.m-research { background: var(--b-bg); text-decoration: underline dashed var(--b-line) 2px; text-underline-offset: 4px; }
+.sent.m-explain { background: var(--p-bg); text-decoration: underline dotted var(--p-line) 2px; text-underline-offset: 4px; }
+.section.read .sec-head h2 { font-size: 16px; }
+#questions-wrap textarea { margin-bottom: 6px; }
+#export-options { margin-top: 4px; }
+.sec-head .kicker { flex-basis: 100%; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }

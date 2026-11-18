@@ -211,6 +211,59 @@ export function buildReviewSections(paragraphs) {
   };
 }
 
+// ---------- Reading mode: any document, split by its headings ----------
+
+export function looksLikeHeading(text) {
+  const t = String(text).trim();
+  if (!t || t.length > 90) return false;
+  if (/^#{1,6}\s+\S/.test(t)) return true; // markdown
+  if (/[.,;]$/.test(t) && !/^([IVXLC]+|[A-Z]|\d{1,2})\.$/.test(t)) return false;
+  const letters = t.replace(/[^A-Za-z]/g, '');
+  if (letters.length >= 3 && letters === letters.toUpperCase() && t.split(/\s+/).length <= 12) return true; // ALL CAPS
+  // "I. Background", "A. Standard of Review", "2. Discussion"
+  if (/^(?:[IVXLC]{1,6}|[A-H]|\d{1,2})[.)]\s+\p{Lu}/u.test(t) && t.length <= 70 && t.split(/\s+/).length <= 9) return true;
+  return false;
+}
+
+// blocks: array of strings, or {text, heading} objects (heading=true from Word styles).
+export function buildReadingSections(blocks) {
+  const items = blocks
+    .map((b) => (typeof b === 'string' ? { text: b, heading: false } : b))
+    .map((b) => ({ text: String(b.text).replace(/\s+/g, ' ').trim(), heading: !!b.heading }))
+    .filter((b) => b.text);
+  const sections = [];
+  let cur = null;
+  let pCount = 0;
+  let pending = []; // headings waiting for their first paragraph
+  for (const b of items) {
+    if (b.heading || looksLikeHeading(b.text)) {
+      pending.push(b.text.replace(/^#{1,6}\s+/, ''));
+      continue;
+    }
+    if (pending.length || !cur) {
+      const label = pending.length ? pending[pending.length - 1] : 'Beginning';
+      cur = { id: `s${sections.length + 1}`, kind: 'read', number: null, label, kicker: pending.slice(0, -1).join(' · '), request: [], paras: [], pStart: pCount };
+      sections.push(cur);
+      pending = [];
+    }
+    const sents = splitSentences(b.text);
+    if (sents.length) { cur.paras.push(sents); pCount++; }
+  }
+  let out = sections.filter((s) => s.paras.length);
+  // No headings at all in a long document: break it into parts so notes and "Jump to" stay useful.
+  if (out.length === 1 && out[0].label === 'Beginning') {
+    const all = out[0].paras;
+    const size = 12;
+    if (all.length > 20) {
+      out = [];
+      for (let i = 0; i < all.length; i += size) {
+        out.push({ id: `s${out.length + 1}`, kind: 'read', number: null, label: `Part ${out.length + 1} (¶${i + 1}–${Math.min(i + size, all.length)})`, request: [], paras: all.slice(i, i + size), pStart: i });
+      }
+    } else out[0].label = 'Document';
+  }
+  return { structured: false, sections: out };
+}
+
 export function normalize(text) {
   return String(text)
     .replace(/[‘’]/g, "'")

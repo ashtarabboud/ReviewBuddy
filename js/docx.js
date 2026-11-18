@@ -64,6 +64,16 @@ function paragraphText(p) {
   return out;
 }
 
+function isHeadingParagraph(p) {
+  const pPr = [...p.children].find((c) => c.localName === 'pPr');
+  if (!pPr) return false;
+  for (const c of pPr.children) {
+    if (c.localName === 'outlineLvl') return true;
+    if (c.localName === 'pStyle' && /^(heading|title|subtitle)/i.test(c.getAttributeNS(W_NS, 'val') || '')) return true;
+  }
+  return false;
+}
+
 function collectParagraphs(node, out) {
   for (const el of node.children) {
     const n = el.localName;
@@ -72,23 +82,31 @@ function collectParagraphs(node, out) {
       collectParagraphs(el, out);
       continue;
     }
-    if (n === 'p') out.push(paragraphText(el));
+    if (n === 'p') out.push({ text: paragraphText(el), heading: isHeadingParagraph(el) });
     else if (n === 'sectPr') continue;
     else collectParagraphs(el, out); // tables, rows, cells, content controls, etc.
   }
 }
 
-export function paragraphsFromDocumentXml(xml) {
+export function blocksFromDocumentXml(xml) {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   if (doc.getElementsByTagName('parsererror').length) throw new Error('Could not read the Word document contents.');
   const body = doc.getElementsByTagNameNS(W_NS, 'body')[0];
   if (!body) throw new Error('No document body found in this .docx file.');
   const out = [];
   collectParagraphs(body, out);
-  return out.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  return out.map((b) => ({ text: b.text.replace(/\s+/g, ' ').trim(), heading: b.heading })).filter((b) => b.text);
+}
+
+export function paragraphsFromDocumentXml(xml) {
+  return blocksFromDocumentXml(xml).map((b) => b.text);
+}
+
+// Paragraphs with a heading flag (from Word heading styles), used by reading mode.
+export async function extractDocxBlocks(arrayBuffer) {
+  return blocksFromDocumentXml(await readZipEntry(arrayBuffer, 'word/document.xml'));
 }
 
 export async function extractDocxParagraphs(arrayBuffer) {
-  const xml = await readZipEntry(arrayBuffer, 'word/document.xml');
-  return paragraphsFromDocumentXml(xml);
+  return (await extractDocxBlocks(arrayBuffer)).map((b) => b.text);
 }
