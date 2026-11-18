@@ -56,6 +56,10 @@ appears in collapsed sections so it doesn't clutter the review but can still be 
 - No analytics, trackers, cookies, web fonts or CDNs. The only third-party code is pdf.js, served from this app's own files.
 - Data is stored only in this browser's `localStorage` on your device. "☰ → Erase all data on this device" deletes it.
 - The service worker (`sw.js`) caches only the app's own files so it works offline; it never sees your documents.
+- **Automatic updates:** when online, the app always loads its newest files; a newly published version takes over
+  and the page refreshes itself once (after saving, and not while a dialog or text box is in use). Offline, the last
+  saved copy opens. The version number is shown on the home screen and at the bottom of the ☰ menu.
+  When releasing, bump `APP_VERSION` in `js/app.js` and `VERSION` in `sw.js` together (a test checks they match).
 - The automated tests prove this: they record every network request while a document is loaded, reviewed and
   exported (only the app's own files may load, and nothing after the document opens), and they deliberately try to
   `fetch`, `sendBeacon`, and load an image to an outside server — which must receive zero hits.

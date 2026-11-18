@@ -12,7 +12,7 @@ import { extractDocxBlocks } from './docx.js';
 import { extractPdfParagraphs } from './pdf.js';
 import { SAMPLE_NAME, SAMPLE_TEXT, READING_SAMPLE_NAME, READING_SAMPLE_TEXT } from './sample.js';
 
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.2.0'; // keep in sync with VERSION in sw.js
 const STORE_KEY = 'reviewbuddy:v1';
 
 const MODES = {
@@ -346,7 +346,7 @@ function render() {
   document.body.dataset.mode = has ? modeOf(review) : '';
   if (!has) {
     $('#doc-title').textContent = 'ReviewBuddy';
-    setStatus('Private · works offline');
+    setStatus(`Private · works offline · v${APP_VERSION}`);
     main.replaceChildren(renderWelcome());
     updateUndo();
     return;
@@ -1113,9 +1113,49 @@ $('#btn-save-json').addEventListener('click', () => {
 
 render();
 
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+// ---------------------------------------------------------------- automatic updates
+// The service worker always fetches the newest app files when online. When a new version is
+// published, the new service worker takes over and this page reloads itself once, so an
+// installed Home-Screen app stays current without any action. Your reviews are saved first.
+
+let pendingReload = false;
+
+function busy() {
+  const a = document.activeElement;
+  return !!document.querySelector('dialog[open]') || (a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT'));
 }
 
+function applyUpdate() {
+  flush();
+  try { sessionStorage.setItem('reviewbuddy:updated', '1'); } catch (e) { /* ignore */ }
+  location.reload();
+}
+
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  let hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) { hadController = true; return; } // first install: nothing to refresh
+    if (busy()) {
+      pendingReload = true;
+      toast('An update is ready. It will apply when you leave or reopen the app.', 5000);
+    } else applyUpdate();
+  });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+    const check = () => reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && pendingReload) applyUpdate();
+      else if (document.visibilityState === 'visible') check();
+    });
+    setInterval(check, 30 * 60 * 1000);
+  }).catch(() => {});
+}
+
+try {
+  if (sessionStorage.getItem('reviewbuddy:updated')) {
+    sessionStorage.removeItem('reviewbuddy:updated');
+    toast(`ReviewBuddy updated to version ${APP_VERSION}.`);
+  }
+} catch (e) { /* ignore */ }
+
 // Expose a tiny hook for automated tests only (no data leaves the page).
-window.__reviewbuddy = { exportText: () => review && exportText(), store: () => store };
+window.__reviewbuddy = { exportText: () => review && exportText(), store: () => store, version: APP_VERSION };
