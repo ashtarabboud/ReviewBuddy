@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { readFile } from 'node:fs/promises';
 import http from 'node:http';
-import { serve } from './serve.mjs';
+import { serve, overrides } from './serve.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
@@ -321,4 +321,40 @@ test('document review: Word headings become sections; long text without headings
   // the draft review list stays separate: no "round 2" question when opening a document
   await page.tap('#btn-menu');
   assert.match(await page.textContent('#library-body .saved-list'), /Document review/);
+});
+
+test('auto-update: an open app picks up a newly published version by itself, keeps reviews, and works offline', async (t) => {
+  const ctx = await browser.newContext({ ...devices['iPad (gen 7)'] }); // service workers allowed
+  t.after(async () => { overrides.clear(); await ctx.close(); });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto(base);
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 15000 });
+  const v1 = await page.evaluate(() => window.__reviewbuddy.version);
+  assert.match(await page.textContent('#doc-status'), new RegExp(`v${v1.replace(/\./g, '\\.')}`));
+
+  await page.locator('.mode-card.read').getByRole('button', { name: 'Try a sample' }).tap();
+  await page.locator('[data-k="s2|0|0"]').tap();
+  await page.waitForTimeout(300);
+
+  // "Publish" version 9.9.9.
+  overrides.set('/sw.js', (src) => src.replace(/const VERSION = '[^']+'/, "const VERSION = '9.9.9'"));
+  overrides.set('/js/app.js', (src) => src.replace(/const APP_VERSION = '[^']+'/, "const APP_VERSION = '9.9.9'"));
+
+  // Coming back to the app triggers an update check; the page reloads itself onto the new version.
+  await Promise.all([
+    page.waitForEvent('load', { timeout: 20000 }),
+    page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))),
+  ]);
+  await page.waitForFunction(() => window.__reviewbuddy && window.__reviewbuddy.version === '9.9.9', null, { timeout: 10000 });
+  assert.match(await page.textContent('#toast'), /updated to version 9\.9\.9/);
+  assert.match(await page.locator('[data-k="s2|0|0"]').getAttribute('class'), /m-key/, 'review lost during update');
+
+  // Offline: the saved copy of the new version still opens.
+  await ctx.setOffline(true);
+  await page.reload();
+  await page.waitForSelector('section.read');
+  assert.equal(await page.evaluate(() => window.__reviewbuddy.version), '9.9.9');
+  assert.deepEqual(errors, []);
 });

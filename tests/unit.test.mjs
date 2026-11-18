@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { splitSentences, detectSections, buildReviewSections, paragraphsFromText, ranges } from '../js/parse.js';
 import { SAMPLE_TEXT } from '../js/sample.js';
+import { readFileSync } from 'node:fs';
 
 test('sentence splitter keeps legal citations together', () => {
   assert.deepEqual(splitSentences('Plaintiff objects under Fed. R. Civ. P. 34(b)(2)(C). See Cal. Code Civ. Proc. § 2031.030. Smith v. Jones, 123 F.3d 456 (9th Cir. 2001).'), [
@@ -65,4 +66,10 @@ test('hard-wrapped plain text is re-joined', () => {
 
 test('ranges', () => {
   assert.equal(ranges([1, 2, 3, 5, 7, 8]), 'S1–S3, S5, S7–S8');
+});
+
+test('app version and service-worker version match', () => {
+  const app = readFileSync(new URL('../js/app.js', import.meta.url), 'utf8').match(/const APP_VERSION = '([^']+)'/)[1];
+  const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8').match(/const VERSION = '([^']+)'/)[1];
+  assert.equal(app, sw);
 });
