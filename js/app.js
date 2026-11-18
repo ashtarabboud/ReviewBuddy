@@ -12,7 +12,7 @@ import { extractDocxBlocks } from './docx.js';
 import { extractPdfParagraphs } from './pdf.js';
 import { SAMPLE_NAME, SAMPLE_TEXT, READING_SAMPLE_NAME, READING_SAMPLE_TEXT } from './sample.js';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const STORE_KEY = 'reviewbuddy:v1';
 
 const MODES = {

@@ -5,7 +5,7 @@
   "description": "Private, on-device document review: draft review and document (research) review.",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/unit.test.mjs tests/e2e.test.mjs",
+    "test": "node --test tests/unit.test.mjs tests/pdf-lines.test.mjs tests/e2e.test.mjs",
     "fixtures": "python3 tests/make-fixtures.py tests/fixtures && node tests/make-pdf-fixture.mjs"
   }
 }

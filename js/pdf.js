@@ -49,7 +49,10 @@ function pageLines(items) {
 // Line endings like "Civ. P." or "No." that end an abbreviation, not a sentence.
 const ABBREV_END = /(?:^|[\s(])(?:[A-Z]|No|Nos|v|vs|Fed|Civ|Crim|Evid|Proc|Cal|Supp|App|Cir|Dist|Ct|Inc|Corp|Co|Ltd|Id|cf|al|p|pp|e\.g|i\.e|U\.S|Mr|Mrs|Ms|Dr|St|Sec|Art|Ch)\.$/;
 
-const repeatKey =(t) => t.replace(/\d+/g, '#').toLowerCase();
+// A line that ends a sentence, or is itself a heading.
+const endsSentenceOrHeading = (t) => /[.:;?!"”)]$/.test(t) || looksLikeHeading(t);
+
+const repeatKey = (t) => t.replace(/\d+/g, '#').toLowerCase();
 
 export function linesToParagraphs(pages) {
   // Drop running headers/footers (identical text on many pages) and bare page numbers.
@@ -64,7 +67,9 @@ export function linesToParagraphs(pages) {
   }
   const minRepeat = Math.max(2, Math.ceil(pages.length * 0.5));
   const paras = [];
+  const pageStarts = new Set(); // index of the first paragraph on each page
   for (const lines of pages) {
+    pageStarts.add(paras.length);
     const kept = lines.filter((l, i) => {
       if (/^(page\s*)?\d{1,4}(\s*of\s*\d{1,4})?$/i.test(l.text) || /^[-–]\s*\d{1,4}\s*[-–]$/.test(l.text)) return false;
       const edge = i < 2 || i >= lines.length - 2;
@@ -108,11 +113,12 @@ export function linesToParagraphs(pages) {
   }
   // A paragraph that continues across a page break: join when the previous one doesn't end a sentence.
   const merged = [];
-  for (const p of paras) {
+  paras.forEach((p, i) => {
     const last = merged[merged.length - 1];
-    if (last && !/[.:;?!"”)]$/.test(last) && /^[a-z(]/.test(p)) merged[merged.length - 1] = `${last} ${p}`;
+    const continues = pageStarts.has(i) && last && !/[.:;?!"”)]$/.test(last) && !looksLikeHeading(last) && /^[a-z(]/.test(p);
+    if (continues) merged[merged.length - 1] = `${last} ${p}`;
     else merged.push(p);
-  }
+  });
   return merged;
 }
 

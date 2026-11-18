@@ -1,6 +1,6 @@
 // Offline support: caches ONLY the app's own files. Documents are never fetched or cached here —
 // they are read from your device in the page and never touch the network.
-const CACHE = 'reviewbuddy-1.1.0';
+const CACHE = 'reviewbuddy-1.1.1';
 const ASSETS = [
   './', 'index.html', 'css/styles.css', 'js/app.js', 'js/parse.js', 'js/docx.js', 'js/sample.js', 'js/pdf.js',
   'vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
